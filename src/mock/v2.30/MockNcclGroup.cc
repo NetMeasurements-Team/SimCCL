@@ -2113,6 +2113,7 @@ namespace MockNccl {
         gen_nvls_tree_inter_channels(root->right,nodencclchannlenodes,nvlstreechannel);
       }
     }
+    return nodencclchannlenodes[root->node];
   }
 
   TreeChannels MockNcclGroup::gettreechannels(int rank, GroupType type){
