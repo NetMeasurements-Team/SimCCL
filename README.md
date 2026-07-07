@@ -1,15 +1,68 @@
 # SimCCL
 
-SimCCL is an important component of [**SimAI**](https://github.com/aliyun/SimAI), which enables the transformation of collective communication operations into point-to-point communications. 
+SimCCL is the collective communication translation layer for the [SimAI](https://github.com/aliyun/SimAI) network simulator. It converts NCCL collective operation decisions (algorithm/protocol/channel/chunk) into FlowModels — structured point-to-point flow descriptions — that drive ns3 packet-level simulation or can be exported as CSV for offline analysis.
 
-A basic version (files prefixed with mocknccl) is currently available in the [**astra-sim-alibabacloud**](https://github.com/aliyun/SimAI/tree/master/astra-sim-alibabacloud) repository.
-The complete version will be separately included in this repository within the next two weeks.
+SimCCL does NOT implement GPU kernels or network I/O. It translates "what NCCL would decide" into "what flows would result".
 
-Welcome to join the SimAI community chat groups, with the DingTalk group on the left and the WeChat group on the right.
+## Supported Operations
 
-<div style="display: flex; justify-content: flex-start; align-items: center; gap: 20px; margin-left: 20px;">
-    <img src="./docs/images/simai_dingtalk.jpg" alt="SimAI DingTalk" style="width: 300px; height: auto;">
-    <img src="./docs/images/simai_wechat.jpg" alt="SimAI WeChat" style="width: 300px; height: auto;">
-</div>
+| Collective | Algorithms | Notes |
+|---|---|---|
+| AllReduce | Ring, NVLS | NVLS for single-node >=8 GPU |
+| AllGather | Ring, PAT | PAT for multi-node 1-GPU/node |
+| ReduceScatter | Ring, PAT | PAT for multi-node 1-GPU/node |
+| AlltoAll | Ring | — |
+| Broadcast | Ring | — |
 
-<br/>
+> Note: Tree algorithm constants exist but auto-selection is not triggered on tested hardware (H20). CollNetDirect/CollNetChain are not implemented (require SHARP hardware).
+
+## Quick Start (Standalone Mode)
+
+### Build
+
+```bash
+cd SimCCL/standalone
+bash build.sh v2.30
+```
+
+Output: `build/simccl-standalone` (~300KB, no ns3 dependency, CPU-only)
+
+### Run
+
+```bash
+# Single collective operation
+./build/simccl-standalone --op AllReduce --size 4194304 \
+  --nRanks 8 --nNodes 1 --gpus_per_node 8 --gpu_type H20
+
+# Workload file mode
+./build/simccl-standalone -w ../../example/microAllReduce.txt \
+  --nRanks 16 --nNodes 2 --gpus_per_node 8 --gpu_type H20
+```
+
+Output: `ncclFlowModel_detailed_flows.csv`
+
+### Full Test Suite
+
+```bash
+cd SimCCL
+bash scripts/run_standalone_all.sh
+```
+
+## Integration with SimAI
+
+When compiled as part of the full SimAI simulator, SimCCL provides FlowModels to the ns3 network simulation backend:
+
+```bash
+cd SimAI/
+./scripts/build.sh -c ns3
+```
+
+See [Integration Guide](./docs/integration/integration-with-simai.md) for details.
+
+## Documentation
+
+See [docs/README.md](./docs/README.md) for full documentation index.
+
+## License
+
+MIT — See [LICENSE](../LICENSE)
