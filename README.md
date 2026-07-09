@@ -80,4 +80,4 @@ See [docs/README.md](./docs/README.md) for full documentation index.
 
 ## License
 
-MIT — See [LICENSE](../LICENSE)
+MIT — See [LICENSE](./LICENSE)

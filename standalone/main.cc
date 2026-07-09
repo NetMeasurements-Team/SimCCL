@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <vector>
+#include <stdexcept>
 #include "MockNcclGroup.h"
 #include "MockNcclChannel.h"
 #include "workload_parser.h"
@@ -56,7 +57,9 @@ static GPUType parse_gpu_type(const std::string& s) {
   if (s == "H800") return GPUType::H800;
   if (s == "A100") return GPUType::A100;
   if (s == "A800") return GPUType::A800;
-  return GPUType::H20; // default
+  std::cerr << "[ERROR] Unknown --gpu_type: " << s
+            << " (valid: H20|H100|H800|A100|A800)\n";
+  exit(1);
 }
 
 int main(int argc, char* argv[]) {
@@ -87,6 +90,11 @@ int main(int argc, char* argv[]) {
   }
   if (workload_file.empty() && op_str.empty()) {
     std::cerr << "[ERROR] Must specify either -w <workload> or --op <op> --size <bytes>\n";
+    print_usage(argv[0]);
+    return 1;
+  }
+  if (workload_file.empty() && !op_str.empty() && data_size == 0) {
+    std::cerr << "[ERROR] --size is required and must be > 0 in single-op mode\n";
     print_usage(argv[0]);
     return 1;
   }
@@ -146,7 +154,13 @@ int main(int argc, char* argv[]) {
   if (!workload_file.empty()) {
     // Mode 2: batch workload
     std::cout << "[SimCCL-Standalone] Mode: workload file '" << workload_file << "'\n";
-    auto layers = SimCCL::parse_workload(workload_file);
+    std::vector<SimCCL::LayerDesc> layers;
+    try {
+      layers = SimCCL::parse_workload(workload_file);
+    } catch (const std::exception& e) {
+      std::cerr << "[ERROR] Failed to parse workload: " << e.what() << "\n";
+      return 1;
+    }
     std::cout << "[SimCCL-Standalone] Parsed " << layers.size() << " layers\n";
 
     for (const auto& l : layers) {

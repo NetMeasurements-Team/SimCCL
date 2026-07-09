@@ -41,7 +41,17 @@ class MockNcclLog {
     const char* logLevelEnv = std::getenv("AS_LOG_LEVEL");
     logLevel = logLevelEnv ? static_cast<NcclLogLevel>(std::atoi(logLevelEnv))
                            : NcclLogLevel::INFO;
+    if (LogName.empty()) {
+      // Avoid silently-disabled logging when set_log_name() was never called
+      // (e.g. standalone mode): fall back to a sensible default log file.
+      const char* logNameEnv = std::getenv("AS_LOG_NAME");
+      LogName = logNameEnv ? std::string(logNameEnv) : std::string("simccl.log");
+    }
     logfile.open(LogName, std::ios::app);
+    if (!logfile.is_open()) {
+      std::cerr << "[MockNcclLog] WARNING: cannot open log file '" << LogName
+                << "'; logging is disabled." << std::endl;
+    }
   }
   std::string getCurrentTime() {
     auto now = std::chrono::system_clock::now();

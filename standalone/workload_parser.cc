@@ -12,7 +12,7 @@ static AstraSim::ComType parse_comm_type(const std::string& s) {
   if (s == "REDUCESCATTER") return AstraSim::ComType::Reduce_Scatter;
   if (s == "ALLTOALL") return AstraSim::ComType::All_to_All;
   if (s == "NONE") return AstraSim::ComType::None;
-  return AstraSim::ComType::None;
+  throw std::runtime_error("Unknown communication type: '" + s + "'");
 }
 
 std::vector<LayerDesc> parse_workload(const std::string& filepath) {
@@ -50,6 +50,12 @@ std::vector<LayerDesc> parse_workload(const std::string& filepath) {
         >> fwd_type_str >> ld.fwd_pass_comm_size >> ld.fwd_pass_group_type
         >> wg_type_str >> ld.weight_grad_comm_size >> ld.weight_grad_group_type
         >> ig_type_str >> ld.input_grad_comm_size >> ld.input_grad_group_type;
+
+    if (iss.fail()) {
+      throw std::runtime_error(
+        "Malformed workload line " + std::to_string(i + 3) +
+        " (expected 12 tokens): '" + line + "'");
+    }
 
     ld.fwd_pass_comm_type = parse_comm_type(fwd_type_str);
     ld.weight_grad_comm_type = parse_comm_type(wg_type_str);
