@@ -94,23 +94,7 @@ cd SimCCL/standalone && bash build.sh v2.30
 wc -l ncclFlowModel_detailed_flows.csv  # Expected: 57 (header + 56 flows)
 ```
 
-### Step 10: Cartesian Product Test
-
-1. Edit `scripts/cartesian_test/gen_cases.py`:
-   - Add `"Broadcast"` to `OPS` list
-   - Add version filter in `is_valid()` if needed
-   - Add `"broadcast"` to `real_ops` in `gen_real_cases()`
-
-2. Regenerate and run:
-```bash
-cd scripts/cartesian_test
-python3 gen_cases.py
-bash run_sim_cartesian.sh observe
-bash run_sim_cartesian.sh override
-python3 plot_results.py
-```
-
-### Step 11: Real-Machine Calibration
+### Step 10: Real-Machine Calibration
 
 Run the corresponding nccl-tests binary:
 ```bash
@@ -124,7 +108,7 @@ docker exec <container> bash -c "
 
 Record: op name, sizes, busbw, time(us), algorithm, protocol, NCCL version, GPU model.
 
-### Step 12: Documentation Updates
+### Step 11: Documentation Updates
 
 Update these files (EN + CN):
 - `docs/design/nccl-comparison.md` — algorithm selection table + per-op comparison
@@ -141,7 +125,6 @@ Update these files (EN + CN):
 - [ ] `bash build.sh v2.30` passes
 - [ ] Smoke test produces CSV with >1 rows
 - [ ] `git diff mock/v2.20/` is empty (v2.20 unchanged)
-- [ ] Cartesian test: 0 FAIL (SKIP for edge topologies is acceptable)
 - [ ] Real-machine data recorded
 - [ ] EN and CN docs both updated
 - [ ] No hardcoded paths in docs/scripts

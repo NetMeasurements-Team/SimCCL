@@ -1,15 +1,14 @@
 # Build artifacts
 standalone/build/
+standalone/build_*/
 *.o
 *.d
 
-# Runtime results (root level only)
+# Runtime results
 /results/
+ncclFlowModel_detailed_flows.csv
 
-# Allow cartesian test results (figures, reports, summaries)
-!scripts/cartesian_test/results/figures/
-!scripts/cartesian_test/results/cartesian_test_report.md
-!scripts/cartesian_test/results/sim_observe/summary.csv
-!scripts/cartesian_test/results/sim_override/summary.csv
-!scripts/cartesian_test/results/real/README.md
-!scripts/cartesian_test/results/real/summary_real.csv
+# Local-only (kept locally, excluded from PR)
+scripts/cartesian_test/
+tools/pat_simulator
+tools/pat_simulator.cc

@@ -16,6 +16,21 @@ SimCCL does NOT implement GPU kernels or network I/O. It translates "what NCCL w
 
 > Note: Tree algorithm constants exist but auto-selection is not triggered on tested hardware (H20). CollNetDirect/CollNetChain are not implemented (require SHARP hardware).
 
+## One-Command Standalone (from repo root)
+
+Two wrapper scripts at the SimCCL root build and run the standalone binary without changing into `standalone/`:
+
+```bash
+# Build (default v2.30, or pass v2.20)
+bash build.sh v2.30
+
+# Run a single collective
+bash run.sh --op AllReduce --size 4194304 \
+  --nRanks 8 --nNodes 1 --gpus_per_node 8 --gpu_type H20
+```
+
+> Note: the standalone build includes `astra-sim/system/Common.hh`, so SimCCL must sit inside a SimAI checkout (next to `astra-sim-alibabacloud/`). See [Installation](./docs/getting_started/installation.md) for the required layout.
+
 ## Quick Start (Standalone Mode)
 
 ### Build

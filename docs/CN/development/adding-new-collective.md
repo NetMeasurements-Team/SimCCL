@@ -94,23 +94,7 @@ cd SimCCL/standalone && bash build.sh v2.30
 wc -l ncclFlowModel_detailed_flows.csv  # 预期：57（header + 56 flows）
 ```
 
-### 步骤 10：笛卡尔积测试
-
-1. 修改 `scripts/cartesian_test/gen_cases.py`：
-   - 将 `"Broadcast"` 添加到 `OPS` 列表
-   - 在 `is_valid()` 中添加版本过滤（如需要）
-   - 将 `"broadcast"` 添加到 `gen_real_cases()` 的 `real_ops`
-
-2. 重新生成并运行：
-```bash
-cd scripts/cartesian_test
-python3 gen_cases.py
-bash run_sim_cartesian.sh observe
-bash run_sim_cartesian.sh override
-python3 plot_results.py
-```
-
-### 步骤 11：真机校准
+### 步骤 10：真机校准
 
 运行对应的 nccl-tests 二进制：
 ```bash
@@ -124,7 +108,7 @@ docker exec <container> bash -c "
 
 记录：op 名称、大小、busbw、time(us)、算法、协议、NCCL 版本、GPU 型号。
 
-### 步骤 12：文档更新
+### 步骤 11：文档更新
 
 更新以下文件（EN + CN）：
 - `docs/design/nccl-comparison.md` — 算法选择表 + 逐操作对比
@@ -141,7 +125,6 @@ docker exec <container> bash -c "
 - [ ] `bash build.sh v2.30` 通过
 - [ ] 冒烟测试生成 CSV 且行数 > 1
 - [ ] `git diff mock/v2.20/` 为空（v2.20 未修改）
-- [ ] 笛卡尔积测试：0 FAIL（边界拓扑 SKIP 可接受）
 - [ ] 真机数据已记录
 - [ ] EN 和 CN 文档均已更新
 - [ ] 文档/脚本中无硬编码路径

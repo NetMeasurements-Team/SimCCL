@@ -32,6 +32,8 @@ make -j$(nproc)
 
 Output: `build/simccl-standalone` (~300KB, no ns3 dependency)
 
+> **Required layout**: the standalone build includes `astra-sim/system/Common.hh` and its CMake references `../../astra-sim-alibabacloud`. SimCCL must therefore be checked out inside a SimAI tree, i.e. as `SimAI/SimCCL/` next to `SimAI/astra-sim-alibabacloud/`. A bare `git clone` of SimCCL alone cannot build the standalone binary.
+
 ## Build Full SimAI (with ns3)
 
 ```bash

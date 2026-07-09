@@ -141,6 +141,8 @@ The script tests 56 cases: 52 valid topology combinations (1n8g, 2n8g, 2n1g-PAT,
 
 ## Known Limitations
 
+> **Checkout layout requirement**: the standalone build includes `astra-sim/system/Common.hh` and references `../../astra-sim-alibabacloud` in CMake, so SimCCL must live inside a SimAI tree (`SimAI/SimCCL/` next to `SimAI/astra-sim-alibabacloud/`). A bare clone of SimCCL alone cannot build the standalone binary.
+
 1. **NVSwitch topology**: NVSwitch nodes are only created when `gpus_per_node > 4`. For smaller configurations, NVSwitch-related group entries are skipped (bounds-checked).
 
 2. **PAT implementation**: The current PAT FlowModel generation (`genPATFlowModels()`) uses a binomial tree state machine for AllGather/ReduceScatter when `nNodes > 1 && gpus_per_node == 1`. PAT only triggers for AllGather/ReduceScatter, NOT AllReduce.
