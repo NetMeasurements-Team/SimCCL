@@ -1,10 +1,10 @@
 #!/bin/bash
 # SimCCL Standalone Full-Feature Test Script
 # Runs all valid + invalid configuration combinations, records results.
-# Usage: bash run_standalone_all.sh [path-to-simccl-standalone]
+# Usage: bash run_all.sh [path-to-simccl-standalone]
 set -o pipefail
 
-BINARY="${1:-$(dirname "$0")/../standalone/build/simccl-standalone}"
+BINARY="${1:-$(dirname "$0")/../src/build/simccl-standalone}"
 BINARY="$(cd "$(dirname "$BINARY")" && pwd)/$(basename "$BINARY")"
 RESULTS_DIR="$(cd "$(dirname "$0")" && pwd)/../results"
 mkdir -p "$RESULTS_DIR"

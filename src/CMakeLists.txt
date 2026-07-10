@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(MOCK_VERSION "v2.30" CACHE STRING "Mock NCCL version to compile (v2.20 or v2.30)")
 
 # Paths
-set(MOCK_DIR ${CMAKE_SOURCE_DIR}/../mock/${MOCK_VERSION})
+set(MOCK_DIR ${CMAKE_SOURCE_DIR}/mock/${MOCK_VERSION})
 set(ASTRASIM_ROOT ${CMAKE_SOURCE_DIR}/../../astra-sim-alibabacloud)
 
 # Validate mock version exists

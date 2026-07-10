@@ -11,7 +11,7 @@ This mode exists to satisfy the GitHub PR requirement: SimCCL should be independ
 ## Building
 
 ```bash
-cd SimCCL/standalone
+cd SimCCL/src
 
 # Build with v2.30 mock (default)
 bash build.sh v2.30
@@ -133,7 +133,7 @@ Run the full-feature test script to validate all configurations:
 
 ```bash
 cd SimCCL
-bash scripts/run_standalone_all.sh
+bash scripts/run_all.sh
 # Results: results/standalone_test_summary.csv
 ```
 

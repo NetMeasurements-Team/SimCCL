@@ -16,7 +16,7 @@
 ## 构建 Standalone 二进制
 
 ```bash
-cd SimCCL/standalone
+cd SimCCL/src
 
 # 默认：v2.30 mock
 bash build.sh v2.30
@@ -51,7 +51,7 @@ bash build/astra_ns3/build.sh
 docker exec -it <container_name> bash
 
 # 容器内：构建 standalone
-cd /path/to/SimAI/SimCCL/standalone
+cd /path/to/SimAI/SimCCL/src
 bash build.sh v2.30
 
 # 运行
@@ -63,7 +63,7 @@ bash build.sh v2.30
 
 ```bash
 docker exec <container_name> bash -c "\
-  cd /path/to/SimAI/SimCCL/standalone && \
+  cd /path/to/SimAI/SimCCL/src && \
   bash build.sh v2.30 && \
   ./build/simccl-standalone --op AllReduce --size 4194304 \
     --nRanks 8 --nNodes 1 --gpus_per_node 8"

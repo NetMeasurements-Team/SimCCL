@@ -22,7 +22,7 @@ SimCCL/
 │   ├── v2.30/          # NCCL v2.30.7 translation semantics (active development)
 │   │   └── (same files, with PAT algorithm + protocol-aware + CSV algo/proto columns)
 │   └── README.md
-├── standalone/         # Independent binary (no ns3 dependency)
+├── src/         # Independent binary (no ns3 dependency)
 │   ├── CMakeLists.txt
 │   ├── main.cc
 │   ├── workload_parser.cc/h

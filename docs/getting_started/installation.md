@@ -16,7 +16,7 @@
 ## Build Standalone Binary
 
 ```bash
-cd SimCCL/standalone
+cd SimCCL/src
 
 # Default: v2.30 mock
 bash build.sh v2.30
@@ -53,7 +53,7 @@ Additional dependencies for full build: boost, protobuf (provided by the SimAI b
 docker exec -it <container_name> bash
 
 # Inside container: build standalone
-cd /path/to/SimAI/SimCCL/standalone
+cd /path/to/SimAI/SimCCL/src
 bash build.sh v2.30
 
 # Run
@@ -65,7 +65,7 @@ bash build.sh v2.30
 
 ```bash
 docker exec <container_name> bash -c "\
-  cd /path/to/SimAI/SimCCL/standalone && \
+  cd /path/to/SimAI/SimCCL/src && \
   bash build.sh v2.30 && \
   ./build/simccl-standalone --op AllReduce --size 4194304 \
     --nRanks 8 --nNodes 1 --gpus_per_node 8"

@@ -12,7 +12,7 @@ SimCCL standalone 是一个自包含二进制程序，无需链接或运行 ns3 
 ## 编译
 
 ```bash
-cd SimCCL/standalone
+cd SimCCL/src
 
 # 编译 v2.30 mock（默认）
 bash build.sh v2.30
@@ -122,7 +122,7 @@ flow_size,chunk_id,chunk_count,conn_type,parent_flow_ids,prev_flow_ids
 
 ```bash
 cd SimCCL
-bash scripts/run_standalone_all.sh
+bash scripts/run_all.sh
 # 结果：results/standalone_test_summary.csv
 ```
 

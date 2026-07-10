@@ -23,7 +23,7 @@ SimCCL/
 │   ├── v2.30/          # NCCL v2.30.7 翻译语义（活跃开发中）
 │   │   └── （相同文件，增加 PAT 算法 + 协议感知 + CSV 算法/协议列）
 │   └── README.md
-├── standalone/         # 独立可执行文件（不依赖 ns3）
+├── src/         # 独立可执行文件（不依赖 ns3）
 │   ├── CMakeLists.txt
 │   ├── main.cc
 │   ├── workload_parser.cc/h

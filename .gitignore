@@ -1,6 +1,6 @@
 # Build artifacts
-standalone/build/
-standalone/build_*/
+src/build/
+src/build_*/
 *.o
 *.d
 
@@ -10,5 +10,3 @@ ncclFlowModel_detailed_flows.csv
 
 # Local-only (kept locally, excluded from PR)
 scripts/cartesian_test/
-tools/pat_simulator
-tools/pat_simulator.cc

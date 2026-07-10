@@ -57,7 +57,7 @@ SIMAI_PROTO_AWARE         → AS_PROTO_AWARE (fallback)
 ### SimCCL Standalone
 
 ```bash
-cd SimCCL/standalone && bash build.sh v2.30
+cd SimCCL/src && bash build.sh v2.30
 
 # Basic run (default env)
 ./build/simccl-standalone --op AllGather --size 524288 --nRanks 4 --nNodes 4 --gpus_per_node 1

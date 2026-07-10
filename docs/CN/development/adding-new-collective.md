@@ -72,7 +72,7 @@ std::map<int,std::shared_ptr<FlowModels>> genBroadcastFlowModels(GroupType type,
 
 ### 步骤 7：Standalone Parser
 
-在 `standalone/main.cc` 的 `parseOp()` 中添加：
+在 `src/main.cc` 的 `parseOp()` 中添加：
 ```cpp
 if (s == "Broadcast") return AstraSim::ComType::Broadcast;
 ```
@@ -81,7 +81,7 @@ if (s == "Broadcast") return AstraSim::ComType::Broadcast;
 ### 步骤 8：编译验证
 
 ```bash
-cd SimCCL/standalone && bash build.sh v2.30
+cd SimCCL/src && bash build.sh v2.30
 # 必须 0 错误编译通过
 ```
 
