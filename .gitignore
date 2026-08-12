@@ -1,5 +1,12 @@
-.vscode
-build/
-test/log/
-*.log
-.cur*
+# Build artifacts
+src/build/
+src/build_*/
+*.o
+*.d
+
+# Runtime results
+/results/
+ncclFlowModel_detailed_flows.csv
+
+# Local-only (kept locally, excluded from PR)
+scripts/cartesian_test/
