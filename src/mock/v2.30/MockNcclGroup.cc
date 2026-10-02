@@ -22,6 +22,7 @@
 #include <cmath>
 #include <algorithm>
 #include <fstream>
+#include <stdexcept>
 #include "MockNcclLog.h"
 
 using namespace std;
@@ -84,6 +85,11 @@ void logFlowModels(
     }
     int all_group_idx = 0;
     int nNodes = _ngpus/_gpus_per_nodes;
+    // Ethernet-only topologies have no NVSwitch entries. If present, the
+    // mapping must contain one entry per server before groups index it.
+    if (!_NVSwitch.empty() && _NVSwitch.size() != static_cast<size_t>(nNodes)) {
+      throw std::invalid_argument("NVSwitch mapping must be empty or contain one entry per server");
+    }
     int nlocalranks = _gpus_per_nodes;
     int TP_nums = _ngpus/_TP_size;
     int DP_nums = _ngpus/_DP_size;
