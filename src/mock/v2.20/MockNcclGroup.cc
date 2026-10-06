@@ -1873,6 +1873,11 @@ void logFlowModels(
     }
     gp_idx = GroupIndex[std::make_pair(rank,type)];
     gp_info = AllGroups[gp_idx];
+    // Communicator initialization also requests NVLS channels for
+    // Ethernet-only groups, which have no NVSwitch.
+    if (gp_info.NVSwitchs.empty()) {
+      return {};
+    }
     if (gp_info.nNodes > 1) {
       NcclLog->writeLog(NcclLogLevel::DEBUG," %d","error NVLS ALGO dont");
       return {};
