@@ -60,11 +60,11 @@ namespace MockNccl {
     return this->nvlstreechannels;
   }
 
-  std::shared_ptr<void> MockNcclComm::get_flow_model(uint64_t data_size,AstraSim::ComType collective_type,int layer_num,State loopstate) {
-    return this->GlobalGroup->getFlowModels(type,rank,collective_type,data_size,layer_num,loopstate);
+  std::shared_ptr<void> MockNcclComm::get_flow_model(uint64_t data_size,AstraSim::ComType collective_type,int layer_num,State loopstate, bool& msccl) {
+    return this->GlobalGroup->getFlowModels(type,rank,collective_type,data_size,layer_num,loopstate, msccl);
   }
 
-  struct ncclInfo* MockNcclComm::get_algo_proto_info(uint64_t data_size,AstraSim::ComType collective_type){
-    return this->GlobalGroup->get_algo_proto_info(type,rank,collective_type,data_size);
+  struct ncclInfo* MockNcclComm::get_algo_proto_info(uint64_t data_size,AstraSim::ComType collective_type, bool msccl){
+    return this->GlobalGroup->get_algo_proto_info(type,rank,collective_type,data_size,msccl);
   }
 }

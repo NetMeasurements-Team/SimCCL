@@ -25,6 +25,8 @@
 #define NCCL_ALGO_NVLS 4
 #define NCCL_ALGO_NVLS_TREE 5
 #define NCCL_ALGO_PAT 6
+// not modifying the NUM_ALGORITHMS as this is not official so it isn't present in any tuner table.
+#define NCCL_ALGO_MSCCL 7
 
 #define NCCL_NUM_PROTOCOLS 3 // Simple/LL/LL128
 #define NCCL_PROTO_UNDEF -1
