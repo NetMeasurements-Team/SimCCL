@@ -16,7 +16,7 @@
 #ifndef ASTRA_SIM_MOCKNCCL_MOCKNCCL_H
 #define ASTRA_SIM_MOCKNCCL_MOCKNCCL_H
 
-#define NCCL_NUM_ALGORITHMS 7 // Tree/Ring/CollNet*/NVLS*/PAT (PAT added for v2.30)
+#define NCCL_NUM_ALGORITHMS 8 // Tree/Ring/CollNet*/NVLS*/PAT (PAT added for v2.30)/MSCCL (SimAI custom collectives)
 #define NCCL_ALGO_UNDEF -1
 #define NCCL_ALGO_TREE 0
 #define NCCL_ALGO_RING 1
@@ -25,6 +25,8 @@
 #define NCCL_ALGO_NVLS 4
 #define NCCL_ALGO_NVLS_TREE 5
 #define NCCL_ALGO_PAT 6
+// MSCCL is not an official NCCL algorithm: it has no entry in NCCL's tuning tables, so the
+// tables below give it the Ring values (MSCCL kernels use the same point-to-point primitives).
 #define NCCL_ALGO_MSCCL 7
 
 #define NCCL_NUM_PROTOCOLS 3 // Simple/LL/LL128
@@ -63,12 +65,15 @@ static const double llMaxBws[3][3] = {
     /* Hopper-N1/AMD-N2/AMD-N4) */ {87.7, 22.5 /*avg of ring & tree*/, 19.0}
 };
 // Latencies in us, Bandwidths in GB/s
+// Source: NCCL v2.20.5-1 src/graph/tuning.cc (baseLat). PAT does not exist in NCCL 2.20, only here for allowing Sys.cc to compile.
+// its row is 0 (unsupported), so the ns3 frontend falls back to its default send latency.
 // Tree { LL, LL128, Simple } , Ring { LL, LL128, Simple }
 static const float baseLat  [NCCL_NUM_ALGORITHMS][NCCL_NUM_PROTOCOLS] = {
-    {  6.8, 14.0,    0 }, {  6.6, 14.0,  8.4 }, // Tree, Ring
-    {  6.8, 14.0,    0 }, {  6.8, 14.0,    0 },       // Collnet Direct, Chain
-    {    0,    0, 23.0 }, {    0,    0, 23.0 },     // NVLS, NVLS Tree
-    {  6.6, 14.0,  8.4 }};   // PAT (v2.30; mirror Ring baseline until calibrated -- H20 single node does not select PAT by default, see calib_260611)
+    {  6.8, 14.0,    0 }, {  6.6, 14.0,  8.4 },  // Tree, Ring
+    {    0,    0,    0 }, {    0,    0,    0 },  // Collnet Direct, Chain
+    {    0,    0,    0 }, {    0,    0,    0 },  // NVLS, NVLS Tree
+    {    0,    0,    0 },                       // PAT (not in NCCL 2.20)
+    {  6.6, 14.0,  8.4 }};                       // MSCCL (= Ring)
 
 static const double perChMaxRingLL128Bws[3][3] = {
     /* Volta (N1/N2/N4) */  {20.0, 20.0, 20.0},
@@ -87,25 +92,29 @@ static const double perChMaxTreeBws[3][3] = {
 };
 
 // NVLink, PCI, Network 硬件时延
+// Source: NCCL v2.20.5-1 src/graph/tuning.cc (hwLat). PAT row is 0 (not in NCCL 2.20), only here for compiling the shared code in Sys.cc
 #define NCCL_HW_NVLINK 0
 #define NCCL_HW_PCI 1
 #define NCCL_HW_NET 2
-static float hwLat [3][NCCL_NUM_ALGORITHMS][NCCL_NUM_PROTOCOLS] =
+static const float hwLat [3][NCCL_NUM_ALGORITHMS][NCCL_NUM_PROTOCOLS] =
     { /* NVLINK */
-     { /* Tree (LL/LL128/Simple)*/ { .6, 1.25,  4 }, /* Ring (LL/LL128/Simple)*/ { .6, 1.9, 3.4 },
-      /* CollNetDirect (Simple)*/ { 0, 0, 8.0 }, /* CollNetChain (Simple)*/ { 0, 0, 4.75 },
-      /* NVLS */ { 0, 0, 0 }, /* NVLSTree */ { 0, 0, 0 },
-      /* PAT (v2.30; mirror Ring until calibrated)*/ { .6, 1.9, 3.4 } },
+     { /* Tree (LL/LL128/Simple)*/ { .6, 1.25, 28 }, /* Ring (LL/LL128/Simple)*/ { .6, 1.9, 3.4 },
+      /* CollNetDirect (Simple)*/ { 0, 0, 3.7 }, /* CollNetChain (Simple)*/ { 0, 0, 2.8 },
+      /* NVLS */ { 0, 0, 23 }, /* NVLSTree */ { 0, 0, 23 },
+      /* PAT */ { 0, 0, 0 },
+      /* MSCCL (= Ring) */ { .6, 1.9, 3.4 } },
      /* PCI */
-     { /* Tree (LL/LL128/Simple)*/ { 1.0, 1.9,  6 }, /* Ring (LL/LL128/Simple)*/ { 1.0, 2.5, 5.7 },
-      /* CollNetDirect (Simple)*/ { 0, 0, 8.0 }, /* CollNetChain (Simple)*/ { 0, 0, 8.0 },
+     { /* Tree (LL/LL128/Simple)*/ { 1.0, 1.9, 28 }, /* Ring (LL/LL128/Simple)*/ { 1.0, 2.5, 5.7 },
+      /* CollNetDirect (Simple)*/ { 0, 0, 3.7 }, /* CollNetChain (Simple)*/ { 0, 0, 2.8 },
       /* NVLS */ { 0, 0, 0 }, /* NVLSTree */ { 0, 0, 0 },
-      /* PAT */ { 1.0, 2.5, 5.7 } },
+      /* PAT */ { 0, 0, 0 },
+      /* MSCCL (= Ring) */ { 1.0, 2.5, 5.7 } },
      /* NET */
-     { /* Tree (LL/LL128/Simple)*/ { 5.0, 8.5, 14 }, /* Ring (LL/LL128/Simple)*/ { 2.7, 4.0, 14.0 },
-      /* CollNetDirect (Simple)*/ { 0, 0, 10.7 }, /* CollNetChain (Simple)*/ { 0, 0, 14 },
-      /* NVLS */ { 0, 0, 18 }, /* NVLSTree */ { 0, 0, 19 },
-      /* PAT */ { 2.7, 4.0, 14.0 } }
+     { /* Tree (LL/LL128/Simple)*/ { 5.0, 8.5, 28 }, /* Ring (LL/LL128/Simple)*/ { 2.7, 4.0, 14.0 },
+      /* CollNetDirect (Simple)*/ { 0, 0, 31 }, /* CollNetChain (Simple)*/ { 0, 0, 30 },
+      /* NVLS */ { 0, 0, 18 }, /* NVLSTree */ { 0, 0, 14 },
+      /* PAT */ { 0, 0, 0 },
+      /* MSCCL (= Ring) */ { 2.7, 4.0, 14.0 } }
 };
 
 // We want link types and path types to match as much as possible
