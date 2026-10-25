@@ -65,14 +65,13 @@ static const double llMaxBws[3][3] = {
     /* Hopper-N1/AMD-N2/AMD-N4) */ {87.7, 22.5 /*avg of ring & tree*/, 19.0}
 };
 // Latencies in us, Bandwidths in GB/s
-// Source: NCCL v2.20.5-1 src/graph/tuning.cc (baseLat). PAT does not exist in NCCL 2.20:
-// its row is 0 (unsupported), so the ns3 frontend falls back to its default send latency.
+// Source: NCCL v2.30.7-1 src/graph/tuning.cc (ncclTunerConstantsDefaults.baseLatencies), plus the MSCCL row (= Ring).
 // Tree { LL, LL128, Simple } , Ring { LL, LL128, Simple }
 static const float baseLat  [NCCL_NUM_ALGORITHMS][NCCL_NUM_PROTOCOLS] = {
-    {  6.8, 14.0,    0 }, {  6.6, 14.0,  8.4 },  // Tree, Ring
+    {  6.8, 14.0,  8.4 }, {  6.6, 14.0,  8.4 },  // Tree, Ring
     {    0,    0,    0 }, {    0,    0,    0 },  // Collnet Direct, Chain
     {    0,    0,    0 }, {    0,    0,    0 },  // NVLS, NVLS Tree
-    {    0,    0,    0 },                       // PAT (not in NCCL 2.20)
+    {  8.0,  8.0,  8.0 },                       // PAT
     {  6.6, 14.0,  8.4 }};                       // MSCCL (= Ring)
 
 static const double perChMaxRingLL128Bws[3][3] = {
@@ -92,28 +91,28 @@ static const double perChMaxTreeBws[3][3] = {
 };
 
 // NVLink, PCI, Network 硬件时延
-// Source: NCCL v2.20.5-1 src/graph/tuning.cc (hwLat). PAT row is 0 (not in NCCL 2.20).
+// Source: NCCL v2.30.7-1 src/graph/tuning.cc (ncclTunerConstantsDefaults.hwLatencies), plus the MSCCL entries (= Ring).
 #define NCCL_HW_NVLINK 0
 #define NCCL_HW_PCI 1
 #define NCCL_HW_NET 2
 static const float hwLat [3][NCCL_NUM_ALGORITHMS][NCCL_NUM_PROTOCOLS] =
     { /* NVLINK */
-     { /* Tree (LL/LL128/Simple)*/ { .6, 1.25, 28 }, /* Ring (LL/LL128/Simple)*/ { .6, 1.9, 3.4 },
+     { /* Tree (LL/LL128/Simple)*/ { .6, 1.25, 4.0 }, /* Ring (LL/LL128/Simple)*/ { .6, 1.9, 3.4 },
       /* CollNetDirect (Simple)*/ { 0, 0, 3.7 }, /* CollNetChain (Simple)*/ { 0, 0, 2.8 },
-      /* NVLS */ { 0, 0, 23 }, /* NVLSTree */ { 0, 0, 23 },
-      /* PAT */ { 0, 0, 0 },
+      /* NVLS */ { 0, 0, 25 }, /* NVLSTree */ { 0, 0, 25 },
+      /* PAT */ { 0, 0, 4.0 },
       /* MSCCL (= Ring) */ { .6, 1.9, 3.4 } },
      /* PCI */
-     { /* Tree (LL/LL128/Simple)*/ { 1.0, 1.9, 28 }, /* Ring (LL/LL128/Simple)*/ { 1.0, 2.5, 5.7 },
+     { /* Tree (LL/LL128/Simple)*/ { 1.0, 1.9, 4.0 }, /* Ring (LL/LL128/Simple)*/ { 1.0, 2.5, 5.7 },
       /* CollNetDirect (Simple)*/ { 0, 0, 3.7 }, /* CollNetChain (Simple)*/ { 0, 0, 2.8 },
       /* NVLS */ { 0, 0, 0 }, /* NVLSTree */ { 0, 0, 0 },
-      /* PAT */ { 0, 0, 0 },
+      /* PAT */ { 0, 0, 4.0 },
       /* MSCCL (= Ring) */ { 1.0, 2.5, 5.7 } },
      /* NET */
-     { /* Tree (LL/LL128/Simple)*/ { 5.0, 8.5, 28 }, /* Ring (LL/LL128/Simple)*/ { 2.7, 4.0, 14.0 },
+     { /* Tree (LL/LL128/Simple)*/ { 5.0, 8.5, 14 }, /* Ring (LL/LL128/Simple)*/ { 2.7, 4.0, 14.0 },
       /* CollNetDirect (Simple)*/ { 0, 0, 31 }, /* CollNetChain (Simple)*/ { 0, 0, 30 },
-      /* NVLS */ { 0, 0, 18 }, /* NVLSTree */ { 0, 0, 14 },
-      /* PAT */ { 0, 0, 0 },
+      /* NVLS */ { 0, 0, 18 }, /* NVLSTree */ { 0, 0, 20.9 },
+      /* PAT */ { 0, 0, 14 },
       /* MSCCL (= Ring) */ { 2.7, 4.0, 14.0 } }
 };
 
