@@ -150,7 +150,7 @@ namespace MockNccl {
     };
    public:
     MockNcclGroup(){}
-    MockNcclGroup(int _ngpus,int _gpus_per_nodes, int _TP_size,int _DP_size,int _PP_size,int _EP_size,int _DP_EP_size,std::vector<int>_NVSwitch,GPUType _gpu_type);
+    MockNcclGroup(int _ngpus,int _gpus_per_nodes, int _TP_size,int _DP_size,int _PP_size,int _EP_size,int _DP_EP_size,std::vector<int>_NVSwitch,GPUType _gpu_type, std::string _msccl_path = "");
     ~MockNcclGroup(){};
 
     std::map<std::pair<int,GroupType>,int> GroupIndex;

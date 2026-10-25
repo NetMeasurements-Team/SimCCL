@@ -34,7 +34,8 @@
 using namespace std;
 namespace MockNccl {
 
-  MockNcclGroup::MockNcclGroup(int _ngpus,int _gpus_per_nodes,int _TP_size,int _DP_size,int _PP_size,int _EP_size,int _DP_EP_size,std::vector<int>_NVSwitch,GPUType _gpu_type):g_flow_id(0),gpu_type(_gpu_type){
+  MockNcclGroup::MockNcclGroup(int _ngpus,int _gpus_per_nodes,int _TP_size,int _DP_size,int _PP_size,int _EP_size,int _DP_EP_size,std::vector<int>_NVSwitch,GPUType _gpu_type, std::string _msccl_path)
+  :msccl_path(std::move(_msccl_path)),g_flow_id(0),gpu_type(_gpu_type){
     /*init groups
     */
     MockNcclLog *NcclLog = MockNcclLog::getInstance();
