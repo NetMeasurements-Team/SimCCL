@@ -399,11 +399,15 @@ namespace MockNccl {
       }
       return presult;
     } else {
-      std::cout << "ID: " << rank << " Searching for MSCCL XML algorithms in folder: " << msccl_path 
-            << " | Layer: " << layer_num 
-            << " | Op: " << to_cstr(op) 
-            << " | DataSize: " << data_size 
-            << std::endl;
+      // Only announce the XML search when it will actually happen: MSCCL requested and the
+      // collective supports it (AllReduce never uses MSCCL, see genAllReduceFlowModels).
+      if (msccl) {
+        std::cout << "ID: " << rank << " Searching for MSCCL XML algorithms in folder: " << msccl_path
+              << " | Layer: " << layer_num
+              << " | Op: " << to_cstr(op)
+              << " | DataSize: " << data_size
+              << std::endl;
+      }
       auto result = genFlowModels(type,rank,op,data_size,msccl);
       NcclLog->writeLog(
           NcclLogLevel::INFO,
@@ -1011,7 +1015,7 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
     if (!found_algo) {
         NcclLog->writeLog(NcclLogLevel::INFO, "No matching MSCCL XML algorithm found for the given data_size. Fallback required.");
         std::cout << "No matching MSCCL XML algorithm found for Group#" << gp_info.group_index
-                  << " (" << gp_info.type << "). Fallback to NcclTreeFlowModel."
+                  << " (" << gp_info.type << "). Falling back to NCCL algorithm selection (NcclFlowModel)."
                   << std::endl;
         return std::nullopt;
     }
