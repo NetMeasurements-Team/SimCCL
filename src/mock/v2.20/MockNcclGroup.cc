@@ -29,6 +29,7 @@
 #include <functional>
 #include <list>
 #include <optional>
+#include <climits>
 #include "MockNcclLog.h"
 
 using namespace std;
@@ -1167,7 +1168,28 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
     // Map: RemoteFlowID -> LocalFlowID (Used to resolve entry point for PXN children)
     std::map<uint64_t, uint64_t> pxn_entry_map;
 
-    std::map<std::tuple<int, int, int, int>, uint64_t> prev_pipeline_entry_flow_map;
+    
+    // Sequential execution inside a thread block (MSCCL interpreter order): in every pipeline
+    // iteration p a TB runs its steps one after the other, and iteration p+1 starts after the
+    // last step of iteration p. So each send waits for the previous step of its TB: the TB's
+    // previous send has completed and every receive issued since then has arrived. For a TB
+    // with a single send this is exactly "same step, previous iteration".
+    // Conservative: on hardware the GPU can move on once the data is in the FIFO buffer.
+    // (gpu, tb) -> events the TB's next send waits for, as (flow id, channel)
+    std::map<std::pair<int, int>, std::vector<std::pair<uint64_t, int>>> tb_frontier;
+    size_t tb_order_links = 0;
+    auto link_flows = [&](uint64_t parent_fid, int parent_chan, uint64_t child_fid, int child_chan) {
+        if (parent_fid == child_fid) return;
+        auto child_it = result.find(std::make_pair(child_chan, child_fid));
+        auto parent_it = result.find(std::make_pair(parent_chan, parent_fid));
+        if (child_it == result.end() || parent_it == result.end()) return;
+        auto& parents = child_it->second.parent_flow_id;
+        if (std::find(parents.begin(), parents.end(), static_cast<int>(parent_fid)) != parents.end()) return;
+        parents.push_back(static_cast<int>(parent_fid));
+        child_it->second.prev.push_back(parent_it->second.src);
+        parent_it->second.child_flow_id.push_back(static_cast<int>(child_fid));
+        ++tb_order_links;
+    };
 
     for (int p = 0; p < num_pipeline_chunks; ++p) {
         uint64_t current_stage_bytes = pipeline_chunk_size;
@@ -1196,9 +1218,6 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                     }
                 }
 
-                // NEW: Unique Key for this logical step, independent of pipeline stage
-                auto pipeline_dependency_key = std::make_tuple(chunk_id, curr_gpu, curr_tb, curr_step_idx);
-
                 if (apply_pxn) {
                     // --- CASE A: PXN Split (Source -> Proxy -> Dest) ---
                     
@@ -1207,18 +1226,6 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                     SingleFlow local_flow(local_fid, curr_gpu, proxy_rank, flow_size,
                                           {}, {}, {}, msccl_tb.channel, effective_chunk_id,
                                           unique_logical_chunk_count * num_pipeline_chunks, "PXN");
-                    
-                    // NEW: Add dependency on the same step in the previous pipeline stage
-                    if (p > 0 && prev_pipeline_entry_flow_map.count(pipeline_dependency_key)) {
-                        uint64_t prev_fid = prev_pipeline_entry_flow_map[pipeline_dependency_key];
-                        local_flow.parent_flow_id.push_back(prev_fid);
-                        // Link parent -> child so the graph is connected
-                        if(result.count({msccl_tb.channel, prev_fid})) {
-                             result.at({msccl_tb.channel, prev_fid}).child_flow_id.push_back(local_fid);
-                        }
-                    }
-                    // Update map: The "Entry" flow for the NEXT stage is this Local Flow
-                    prev_pipeline_entry_flow_map[pipeline_dependency_key] = local_fid;
                     
                     // 2. Remote Flow (Proxy -> Dest) - The "Exit" Flow
                     uint64_t remote_fid = g_flow_id++;
@@ -1246,24 +1253,53 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                                     {}, {}, {}, msccl_tb.channel, effective_chunk_id,
                                     unique_logical_chunk_count * num_pipeline_chunks, "RING");
 
-                    // NEW: Add dependency on the same step in the previous pipeline stage
-                    if (p > 0 && prev_pipeline_entry_flow_map.count(pipeline_dependency_key)) {
-                        uint64_t prev_fid = prev_pipeline_entry_flow_map[pipeline_dependency_key];
-                        flow.parent_flow_id.push_back(prev_fid);
-                        // Link parent -> child
-                        if(result.count({msccl_tb.channel, prev_fid})) {
-                             result.at({msccl_tb.channel, prev_fid}).child_flow_id.push_back(f_id);
-                        }
-                    }
-                    // Update map: The entry flow for the NEXT stage is this flow itself
-                    prev_pipeline_entry_flow_map[pipeline_dependency_key] = f_id;
-
                     result[std::make_pair(msccl_tb.channel, f_id)] = flow;
                     pipeline_flow_map[std::make_tuple(p, chunk_id, curr_gpu, curr_tb, curr_step_idx)] = f_id;
                 }
             }
         }
+
+        // Each send of iteration p depends on the previous step of its thread block.
+        // Linked once every flow of the iteration exists: flows are created chunk by chunk,
+        // not in TB step order, so the previous step may not have existed yet above.
+        std::map<std::tuple<int, int, int>, uint64_t> stage_send;                      // (gpu, tb, step) -> output flow
+        std::map<std::tuple<int, int, int>, std::pair<uint64_t, int>> stage_arrival;   // (dest, src, offset) -> (output flow, channel)
+        for (auto it = pipeline_flow_map.lower_bound(std::make_tuple(p, INT_MIN, INT_MIN, INT_MIN, INT_MIN));
+             it != pipeline_flow_map.end() && std::get<0>(it->first) == p; ++it) {
+            int g = std::get<2>(it->first), t = std::get<3>(it->first), st = std::get<4>(it->first);
+            const auto& tb_obj = msccl_algorithm.gpus.at(g).thread_blocks[t];
+            stage_send[std::make_tuple(g, t, st)] = it->second;
+            stage_arrival[std::make_tuple(tb_obj.send_peer, g, tb_obj.steps[st].dst_offset)] =
+                std::make_pair(it->second, tb_obj.channel);
+        }
+        for (auto const& [g, gpu] : msccl_algorithm.gpus) {
+            for (auto const& tb : gpu.thread_blocks) {
+                auto& frontier = tb_frontier[std::make_pair(g, tb.id)];
+                for (int st = 0; st < static_cast<int>(tb.steps.size()); ++st) {
+                    const auto& step = tb.steps[st];
+                    const bool recvs = (step.type == "r" || step.type == "rcs" || step.type == "rrc" ||
+                                        step.type == "rrcs" || step.type == "rrs");
+                    const bool sends = (step.type == "s" || step.type == "rcs" ||
+                                        step.type == "rrcs" || step.type == "rrs");
+                    if (recvs && tb.recv_peer >= 0) {
+                        auto a = stage_arrival.find(std::make_tuple(g, tb.recv_peer, step.src_offset));
+                        if (a != stage_arrival.end()) frontier.push_back(a->second);
+                    }
+                    if (sends) {
+                        auto f = stage_send.find(std::make_tuple(g, tb.id, st));
+                        if (f == stage_send.end()) continue;
+                        // With PXN the TB's own send is observed through its first hop (GPU -> proxy).
+                        uint64_t entry_fid = pxn_entry_map.count(f->second) ? pxn_entry_map.at(f->second) : f->second;
+                        for (auto const& [parent_fid, parent_chan] : frontier) {
+                            link_flows(parent_fid, parent_chan, entry_fid, tb.channel);
+                        }
+                        frontier.assign(1, std::make_pair(entry_fid, tb.channel));
+                    }
+                }
+            }
+        }
     }
+    NcclLog->writeLog(NcclLogLevel::INFO, "Added %zu intra-TB ordering dependencies.", tb_order_links);
 
     NcclLog->writeLog(NcclLogLevel::INFO, "Created %lu instantiated flows (including PXN splits)", result.size());
 
@@ -1325,10 +1361,15 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                               int p_chan = p_tb_obj.channel;
 
                               // Safely link Parent(Output) -> Child(Input)
+                              // (skipped if the intra-TB ordering already added this parent)
                               if (result.count({c_chan, child_input_fid}) && result.count({p_chan, parent_output_fid})) {
-                                  result.at({c_chan, child_input_fid}).parent_flow_id.push_back(parent_output_fid);
-                                  result.at({c_chan, child_input_fid}).prev.push_back(result.at({p_chan, parent_output_fid}).src); 
-                                  result.at({p_chan, parent_output_fid}).child_flow_id.push_back(child_input_fid);
+                                  auto& c_parents = result.at({c_chan, child_input_fid}).parent_flow_id;
+                                  if (std::find(c_parents.begin(), c_parents.end(),
+                                                static_cast<int>(parent_output_fid)) == c_parents.end()) {
+                                      result.at({c_chan, child_input_fid}).parent_flow_id.push_back(parent_output_fid);
+                                      result.at({c_chan, child_input_fid}).prev.push_back(result.at({p_chan, parent_output_fid}).src);
+                                      result.at({p_chan, parent_output_fid}).child_flow_id.push_back(child_input_fid);
+                                  }
                               }
                           }
                           break; 
@@ -2968,7 +3009,7 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
       return {};
     }
     if (gp_info.nNodes > 1) {
-      NcclLog->writeLog(NcclLogLevel::DEBUG," %d","error NVLS ALGO dont");
+      NcclLog->writeLog(NcclLogLevel::DEBUG, "get_nvls_channels: NVLS not supported for multi-node group (rank %d, nNodes %d)", rank, gp_info.nNodes);
       return {};
     } else {
       std::vector<int> ranks = gp_info.Ranks;
