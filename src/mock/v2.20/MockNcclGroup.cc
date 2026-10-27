@@ -1177,6 +1177,10 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
     // Conservative: on hardware the GPU can move on once the data is in the FIFO buffer.
     // (gpu, tb) -> events the TB's next send waits for, as (flow id, channel)
     std::map<std::pair<int, int>, std::vector<std::pair<uint64_t, int>>> tb_frontier;
+    // PXN relays (proxy -> dest) of a TB's sends: the proxy forwards the steps of one connection
+    // in order (FIFO), so each relay waits for the previous relay of the same TB to be posted.
+    // (gpu, tb) -> (last relay flow id, channel)
+    std::map<std::pair<int, int>, std::pair<uint64_t, int>> pxn_relay_frontier;
     size_t tb_order_links = 0;
     auto link_flows = [&](uint64_t parent_fid, int parent_chan, uint64_t child_fid, int child_chan) {
         if (parent_fid == child_fid) return;
@@ -1294,6 +1298,14 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                             link_flows(parent_fid, parent_chan, entry_fid, tb.channel);
                         }
                         frontier.assign(1, std::make_pair(entry_fid, tb.channel));
+                        if (pxn_entry_map.count(f->second)) {
+                            // f->second is the relay (proxy -> dest) of this PXN send
+                            auto relay = pxn_relay_frontier.find(std::make_pair(g, tb.id));
+                            if (relay != pxn_relay_frontier.end()) {
+                                link_flows(relay->second.first, relay->second.second, f->second, tb.channel);
+                            }
+                            pxn_relay_frontier[std::make_pair(g, tb.id)] = std::make_pair(f->second, tb.channel);
+                        }
                     }
                 }
             }
