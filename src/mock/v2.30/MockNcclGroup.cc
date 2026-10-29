@@ -563,7 +563,10 @@ namespace MockNccl {
       // From common.h (or assumed default)
       static constexpr int NCCL_STEPS = 8;
 
-      static constexpr int MSCCL_CHUNKSTEPS = NCCL_STEPS / 2; // Value is 4
+      // MSCCL pipeline chunk: one Simple-protocol buffer slot, as in NCCL/MSCCL
+      // (primitives.h: stepSize = buffSizes[NCCL_PROTO_SIMPLE] / NCCL_STEPS) = 4 MiB / 8 = 512 KiB.
+      // Used both to generate the pipelined flows and to validate them.
+      static constexpr uint64_t MSCCL_PIPELINE_CHUNK_BYTES = BUFFSIZE_SIMPLE / NCCL_STEPS;
 
       // From common.h for LL128 protocol
       static constexpr int NCCL_LL128_DATAELEMS = 14;
@@ -834,22 +837,11 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
         // Track what each GPU receives
         std::map<int, std::set<int>> gpu_received_chunks;   // Key: dest_gpu, Val: set of unique chunk IDs
         std::map<int, uint64_t> gpu_received_size;        // Key: dest_gpu, Val: total bytes received
-        // find the data size per transfer based on the protocol
-        size_t pipeline_chunk_size=-1;
-        if (protocol == NCCL_PROTO_SIMPLE) {
-            // Formula from primitives.h: ncclShmem.comm.buffSizes[NCCL_PROTO_SIMPLE] / NCCL_STEPS;
-            const uint64_t byte_per_step = NcclSimulationConstants::BUFFSIZE_SIMPLE / NcclSimulationConstants::NCCL_STEPS;
-            pipeline_chunk_size = byte_per_step * NcclSimulationConstants::MSCCL_CHUNKSTEPS;
-        } else if (protocol == NCCL_PROTO_LL) {
-            // Formula from primitives.h: ncclShmem.comm.buffSizes[NCCL_PROTO_LL] / NCCL_STEPS / 2;
-            pipeline_chunk_size = (NcclSimulationConstants::BUFFSIZE_LL / NcclSimulationConstants::NCCL_STEPS) / 2;
-        } else { // Assuming LL128 or other fine-grained protocol
-            // Formula from primitives.h: (ncclShmem.comm.buffSizes[NCCL_PROTO_LL128]/NCCL_STEPS)*NCCL_LL128_DATAELEMS/NCCL_LL128_LINEELEMS;
-            pipeline_chunk_size = (NcclSimulationConstants::BUFFSIZE_LL128 / NcclSimulationConstants::NCCL_STEPS)
-                                  * NcclSimulationConstants::NCCL_LL128_DATAELEMS / NcclSimulationConstants::NCCL_LL128_LINEELEMS;
-        }
-        pipeline_chunk_size = std::min(pipeline_chunk_size, data_size_per_chunk);
-        auto pipeline_leftover_size = data_size_per_chunk % pipeline_chunk_size;
+        // Same pipeline sizing as the flow generator: Simple-sized chunks whatever the protocol
+        // (it only sets the send latency), no pipelining for NCCL_PROTO_UNDEF.
+        uint64_t pipeline_chunk_size = (protocol != NCCL_PROTO_UNDEF)
+            ? NcclSimulationConstants::MSCCL_PIPELINE_CHUNK_BYTES : UINT64_MAX;
+        pipeline_chunk_size = std::min<uint64_t>(pipeline_chunk_size, data_size_per_chunk);
         // Populate trackers by iterating through all generated flows
         NcclLog->writeLog(NcclLogLevel::INFO, "Each transfer will be split into chunks of size %lu bytes.", pipeline_chunk_size);
         for (const auto& [key, flow] : flows) {
@@ -859,20 +851,9 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
                 continue;
             }
             if (flow.src != flow.dest) { // In AllGather, we only care about inter-gpu traffic
-                //for each chunk using cnt
-                size_t chunk_count = -1;
-                if (flow.flow_size % pipeline_chunk_size == 0) {
-                    chunk_count = (flow.flow_size + pipeline_chunk_size - 1) / pipeline_chunk_size;
-                } else {
-                    // FIX: Check if pipeline_leftover_size is 0 before dividing
-                    if (pipeline_leftover_size > 0) {
-                        chunk_count = (flow.flow_size + pipeline_leftover_size - 1) / pipeline_leftover_size;
-                    } else {
-                        // If leftover is 0 but we are here, treat it as 1 chunk to avoid crash
-                        chunk_count = 1;
-                    }
-                }
-                NcclLog->writeLog(NcclLogLevel::DEBUG, "Flow ID: %lu, Src: %d, Dest: %d, Size: %lu, Chunk ID: %d, Chunk Count: %d", flow.flow_id, flow.src, flow.dest, flow.flow_size, flow.chunk_id, chunk_count);
+                // number of pipeline chunks this flow corresponds to (logging only)
+                const uint64_t chunk_count = pipeline_chunk_size ? (flow.flow_size + pipeline_chunk_size - 1) / pipeline_chunk_size : 0;
+                NcclLog->writeLog(NcclLogLevel::DEBUG, "Flow ID: %lu, Src: %d, Dest: %d, Size: %lu, Chunk ID: %d, Chunk Count: %lu", flow.flow_id, flow.src, flow.dest, flow.flow_size, flow.chunk_id, chunk_count);
 
                 // Fixed: Do not loop over sub-chunks. The `chunk_id` is unique for the entire flow/block.
                 if(gpu_received_chunks[flow.dest].count(flow.chunk_id) == 0) {
@@ -1058,8 +1039,7 @@ bool MockNcclGroup::validate_flow_graph(const FlowModels& flows,
 
     if (info->protocol != NCCL_PROTO_UNDEF) {
         // the traffic is always shaped with SIMPLE currently, as the other protocols are not emulated. The only reason for having them is setting the as_send_lat.
-        const uint64_t byte_per_step = NcclSimulationConstants::BUFFSIZE_SIMPLE / NcclSimulationConstants::NCCL_STEPS;
-        pipeline_chunk_size = byte_per_step * NcclSimulationConstants::MSCCL_CHUNKSTEPS / 4; // 512KB
+        pipeline_chunk_size = NcclSimulationConstants::MSCCL_PIPELINE_CHUNK_BYTES; // 512 KiB
     } else {
         pipeline_chunk_size = UINT64_MAX;
     }
